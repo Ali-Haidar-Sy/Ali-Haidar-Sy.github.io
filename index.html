@@ -501,7 +501,7 @@ const { useState, useEffect, useRef, useCallback } = React;
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = ''; // تم تعطيل الخادم الخلفي
 
 const TEMPLATES = [
   {
@@ -938,7 +938,7 @@ p.sum{font-size:10.5pt;color:#333;line-height:1.6}
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
-export default function App() {
+function App() {
   const [step, setStep] = useState(1); // 1=upload/start, 2=template, 3=edit, 4=export
   const [cvData, setCvData] = useState(BLANK_CV);
   const [templateId, setTemplateId] = useState('classic');
@@ -975,31 +975,11 @@ export default function App() {
     }
   }, [cvData, templateId, step]);
 
-  const handleFileUpload = async (file) => {
-    if (!file) return;
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!['pdf', 'docx', 'txt'].includes(ext)) {
-      setError('Unsupported file type. Please upload .pdf, .docx, or .txt'); return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File too large. Maximum size is 10MB.'); return;
-    }
-    setLoading(true); setLoadingMsg('Parsing your CV…'); setError('');
-    const formData = new FormData();
-    formData.append('cv', file);
-    try {
-      const res = await fetch(`${API_BASE}/parse`, { method: 'POST', body: formData });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Parse failed');
-      setCvData(prev => mergeData(prev, json.data));
-      setSuccess('CV parsed successfully! Review and edit your data below.');
-      setStep(2);
-    } catch (err) {
-      setError(`Upload failed: ${err.message}. You can still create a CV manually.`);
-    } finally {
-      setLoading(false);
-    }
-  };
+ const handleFileUpload = async (file) => {
+  if (!file) return;
+  setError('خاصية تحليل السيرة الذاتية غير متاحة حالياً. الرجاء استخدام "Start from Scratch" لبناء السيرة يدوياً.');
+  return;
+};
 
   const mergeData = (prev, incoming) => {
     // Merge incoming parsed data with defaults
@@ -1046,29 +1026,24 @@ export default function App() {
     }
   };
 
-  const exportDocx = async () => {
-    setLoading(true); setLoadingMsg('Generating Word document…');
-    try {
-      const res = await fetch(`${API_BASE}/export/docx`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cvData, templateId })
-      });
-      if (!res.ok) throw new Error('DOCX generation failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${(cvData.personalInfo?.name||'cv').replace(/\s+/g,'_')}_CV.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setSuccess('Word document downloaded!');
-    } catch (err) {
-      setError(`DOCX export failed: ${err.message}. Make sure the backend server is running.`);
-    } finally {
-      setLoading(false);
-    }
-  };
+ const exportDocx = async () => {
+  setLoading(true); setLoadingMsg('جاري إنشاء مستند Word...');
+  try {
+    const html = buildPreviewHtml(cvData, templateId);
+    const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(cvData.personalInfo?.name||'cv').replace(/\s+/g,'_')}_CV.doc`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setSuccess('تم تحميل مستند Word!');
+  } catch (err) {
+    setError(`فشل التصدير: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const goToEdit = () => { setStep(3); setError(''); };
 
